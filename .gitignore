@@ -1,0 +1,27 @@
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Java / Maven / Gradle
+target/
+build/
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+
+# Spring Boot
+application-local.yml
+application-local.properties
+
+# Node / React (front-end, Módulo 9)
+node_modules/
+dist/
+.env
+.env.local
+
+# Docker
+*.pid
+
+# OS
+.DS_Store
