@@ -64,11 +64,13 @@ containerizando o próprio Postgres e, mais adiante, a aplicação.
 - Configuração via `application.yml`, profiles (dev/prod)
 - Tratamento de erros centralizado (`@ControllerAdvice`)
 - Testes: JUnit 5, Mockito, e testes de integração com Testcontainers (Postgres real em container — aqui o Módulo 2 se conecta direto)
+- Migrations com Flyway: versionar o schema (substituindo o `db/schema.sql` aplicado manualmente do Módulo 1), rodar automaticamente na subida da aplicação
 
 **Exercícios:**
 1. Criar o esqueleto do projeto com as camadas bem separadas
 2. Escrever testes de integração que sobem um Postgres real via Testcontainers
 3. Refatorar um endpoint mal feito (proposital) aplicando tratamento de erro adequado
+4. Converter `db/schema.sql` em migrations Flyway versionadas (`V1__...sql`, `V2__...sql`) e validar que sobem sozinhas com a aplicação
 
 ---
 

@@ -66,3 +66,7 @@ restantes.
   entre restarts, variáveis de ambiente via `.env` (não versionado — `.env.example`
   documenta as chaves necessárias), healthcheck com `pg_isready` pra sinalizar quando
   o banco está pronto pra conexões (importante quando a app entrar no compose).
+- **Migrations (Flyway) adicionadas ao escopo do Módulo 3**, mesmo não estando na
+  trilha original — decisão do usuário. `db/schema.sql` será convertido em
+  migrations versionadas (`V1__...sql`, etc.) quando o esqueleto Spring Boot existir,
+  substituindo a aplicação manual de DDL usada nos Módulos 1-2.
