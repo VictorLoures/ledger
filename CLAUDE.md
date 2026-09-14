@@ -28,10 +28,13 @@ para a trilha completa de módulos e exercícios.
 ## Progresso
 
 **Módulo atual:** 2 — Docker e Containerização
-**Status:** ainda não iniciado
+**Status:** em andamento — Postgres containerizado (docker-compose) feito;
+Dockerfile da aplicação e integração no compose ficam pendentes até existir
+código Java (Módulo 3), depois voltamos aqui pra fechar os exercícios
+restantes.
 
 - [x] Módulo 1 — Modelagem de dados no PostgreSQL
-- [ ] Módulo 2 — Docker e Containerização
+- [ ] Módulo 2 — Docker e Containerização (parcial: só Postgres)
 - [ ] Módulo 3 — Spring Boot com boas práticas
 - [ ] Módulo 4 — Agendamento e execução assíncrona
 - [ ] Módulo 5 — Confiabilidade: retry, idempotência, outbox pattern
@@ -54,3 +57,12 @@ para a trilha completa de módulos e exercícios.
   PK `BIGSERIAL`, FK para `jobs`). Índices parciais em `jobs` para as buscas de fila
   (`pending` por `scheduled_at`, `running` travado por `updated_at`) e índice explícito
   na FK de `job_executions` (Postgres não indexa FK automaticamente).
+- **Exercício 3 do Módulo 1 confirmado empiricamente** (`db/concurrency-exercise.md`):
+  rodando as duas transações concorrentes de verdade, `READ COMMITTED` deixou o
+  segundo `UPDATE` sobrescrever silenciosamente sem erro (bug de duplo-processamento);
+  `REPEATABLE READ` acusou `ERROR: could not serialize access due to concurrent update`.
+- **Postgres containerizado** (`docker-compose.yml`): imagem `postgres:16.4-alpine`
+  (versão fixada, não `latest`), volume nomeado `ledger_pgdata` pra persistir dados
+  entre restarts, variáveis de ambiente via `.env` (não versionado — `.env.example`
+  documenta as chaves necessárias), healthcheck com `pg_isready` pra sinalizar quando
+  o banco está pronto pra conexões (importante quando a app entrar no compose).
