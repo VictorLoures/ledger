@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:${POSTGRES_PORT:5432}/${POSTGRES_DB:ledger}
+    username: ${POSTGRES_USER:ledger}
+    password: ${POSTGRES_PASSWORD:changeme}
+  jpa:
+    show-sql: true
+
+logging:
+  level:
+    dev.victorloures.ledger: DEBUG

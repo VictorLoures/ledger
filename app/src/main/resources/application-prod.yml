@@ -1,0 +1,14 @@
+spring:
+  datasource:
+    # hostname "db" = nome do serviço no docker-compose (rede interna),
+    # não "localhost" — só resolve quando a app também roda como container
+    # no mesmo compose (isso é concluído no Módulo 2/3 de integração).
+    url: jdbc:postgresql://db:5432/${POSTGRES_DB}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+  jpa:
+    show-sql: false
+
+logging:
+  level:
+    dev.victorloures.ledger: INFO
