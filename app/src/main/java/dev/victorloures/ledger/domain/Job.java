@@ -105,4 +105,15 @@ public class Job {
     public void markFailed() {
         this.status = JobStatus.FAILED;
     }
+
+    public boolean hasAttemptsLeft() {
+        return attempts < maxAttempts;
+    }
+
+    // Volta pra pending com scheduled_at no futuro: reaproveita o scanner do
+    // Módulo 4 como mecanismo de retry, sem infraestrutura nova.
+    public void scheduleRetry(OffsetDateTime nextAttemptAt) {
+        this.status = JobStatus.PENDING;
+        this.scheduledAt = nextAttemptAt;
+    }
 }

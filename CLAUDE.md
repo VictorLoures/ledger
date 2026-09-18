@@ -27,14 +27,14 @@ para a trilha completa de módulos e exercícios.
 
 ## Progresso
 
-**Módulo atual:** 5 — Confiabilidade: retry, idempotência, outbox pattern
+**Módulo atual:** 6 — Concorrência no banco
 **Status:** ainda não iniciado
 
 - [x] Módulo 1 — Modelagem de dados no PostgreSQL
 - [x] Módulo 2 — Docker e Containerização
 - [x] Módulo 3 — Spring Boot com boas práticas (+ Flyway, fora do escopo original)
 - [x] Módulo 4 — Agendamento e execução assíncrona
-- [ ] Módulo 5 — Confiabilidade: retry, idempotência, outbox pattern
+- [x] Módulo 5 — Confiabilidade: retry, idempotência, outbox pattern
 - [ ] Módulo 6 — Concorrência no banco
 - [ ] Módulo 7 — Observabilidade e API profissional
 - [ ] Módulo 8 — SQL avançado
@@ -102,3 +102,26 @@ para a trilha completa de módulos e exercícios.
   o job nunca muda de status — continua `pending` e é automaticamente re-tentado na
   próxima varredura. `JobScannerService.scan()` captura essa exceção e loga um `WARN`
   limpo em vez de deixar vazar o stacktrace do framework.
+- **Módulo 5 (retry, idempotência, outbox)**: migration `V2__reliability.sql`
+  adiciona `job_side_effects` (guarda de idempotência) e `outbox_events`.
+  `JobProcessingService.processAsync` agora retorna `CompletableFuture<Void>`
+  (não `void`) — necessário pra testar sem depender de sleep/timing, e é
+  também a correção padrão pra "exceção @Async engolida". Falha → calcula
+  backoff exponencial (`2s,4s,8s...` até 1min) e reagenda via
+  `job.scheduleRetry(...)` (reaproveita o scanner do Módulo 4, sem
+  infraestrutura nova); esgotou `max_attempts` → `markFailed()`. Efeito
+  colateral e conclusão gravados na mesma transação que o evento outbox
+  (`recordCompletionEvent`), evitando dual-write. `OutboxPublisherService`
+  (`@Scheduled`) publica (simulado via log) eventos pendentes.
+- **Bug real pego pelos testes automatizados**: a primeira versão marcava o
+  job em `job_side_effects` **antes** de rodar o efeito colateral — então uma
+  tentativa que falhava já ficava "marcada como aplicada" e o retry nunca
+  reexecutava de verdade. Corrigido invertendo a ordem: checa se já foi
+  aplicado, executa, só marca depois do sucesso. `JobProcessingServiceTest`
+  mocka `JobSideEffectExecutor` (não sleep/tempo real) pra validar retry,
+  esgotamento de tentativas e idempotência de forma determinística.
+- **Limitação conhecida, adiada pro Módulo 6**: o check-then-act em
+  `job_side_effects` (existsById, depois insert) não é atômico sob
+  processamento concorrente do mesmo job — só é seguro no cenário sequencial
+  testado aqui. Prevenir dois workers pegando o mesmo job é o próprio
+  objetivo do Módulo 6 (`FOR UPDATE SKIP LOCKED`).
