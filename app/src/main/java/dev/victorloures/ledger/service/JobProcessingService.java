@@ -5,6 +5,9 @@ import dev.victorloures.ledger.domain.OutboxEvent;
 import dev.victorloures.ledger.repository.JobRepository;
 import dev.victorloures.ledger.repository.JobSideEffectRepository;
 import dev.victorloures.ledger.repository.OutboxEventRepository;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
@@ -29,15 +32,29 @@ public class JobProcessingService {
     private final JobSideEffectRepository jobSideEffectRepository;
     private final OutboxEventRepository outboxEventRepository;
     private final JobSideEffectExecutor sideEffectExecutor;
+    private final Counter jobsCompletedCounter;
+    private final Counter jobsFailedCounter;
+    private final Counter jobsRetriedCounter;
+    private final Timer jobProcessingTimer;
 
     public JobProcessingService(JobRepository jobRepository,
                                  JobSideEffectRepository jobSideEffectRepository,
                                  OutboxEventRepository outboxEventRepository,
-                                 JobSideEffectExecutor sideEffectExecutor) {
+                                 JobSideEffectExecutor sideEffectExecutor,
+                                 MeterRegistry meterRegistry) {
         this.jobRepository = jobRepository;
         this.jobSideEffectRepository = jobSideEffectRepository;
         this.outboxEventRepository = outboxEventRepository;
         this.sideEffectExecutor = sideEffectExecutor;
+        // Nomes seguem a convenção do Micrometer (substantivo.verbo, unidade
+        // implícita no tipo): contadores só sobem, nunca voltam a zero — o
+        // valor absoluto não importa tanto quanto a TAXA de variação
+        // (jobs.failed por minuto, por exemplo), que qualquer sistema de
+        // métricas (Prometheus, etc.) calcula em cima do contador bruto.
+        this.jobsCompletedCounter = meterRegistry.counter("jobs.completed");
+        this.jobsFailedCounter = meterRegistry.counter("jobs.failed");
+        this.jobsRetriedCounter = meterRegistry.counter("jobs.retried");
+        this.jobProcessingTimer = meterRegistry.timer("jobs.processing.duration");
     }
 
     // Retorna CompletableFuture<Void> em vez de void por dois motivos: (1) só
@@ -53,13 +70,17 @@ public class JobProcessingService {
         // worker conseguir pegar o mesmo job no meio do caminho.
         Job job = jobRepository.findById(jobId).orElseThrow();
 
+        Timer.Sample sample = Timer.start();
         try {
             runSideEffectIdempotently(job);
             job.markDone();
             recordCompletionEvent(job);
+            jobsCompletedCounter.increment();
             log.info("Job {} concluído (tentativa {})", jobId, job.getAttempts());
         } catch (Exception e) {
             handleFailure(job, e);
+        } finally {
+            sample.stop(jobProcessingTimer);
         }
 
         return CompletableFuture.completedFuture(null);
@@ -90,10 +111,12 @@ public class JobProcessingService {
         if (job.hasAttemptsLeft()) {
             Duration delay = backoffFor(job.getAttempts());
             job.scheduleRetry(OffsetDateTime.now().plus(delay));
+            jobsRetriedCounter.increment();
             log.warn("Job {} falhou (tentativa {}/{}): {} — nova tentativa em {}",
                     job.getId(), job.getAttempts(), job.getMaxAttempts(), e.getMessage(), delay);
         } else {
             job.markFailed();
+            jobsFailedCounter.increment();
             log.error("Job {} esgotou as {} tentativas — marcado como failed: {}",
                     job.getId(), job.getMaxAttempts(), e.getMessage());
         }

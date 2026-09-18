@@ -9,3 +9,21 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
+
+# %X{correlationId:-} / %X{jobId:-} puxam do MDC (o ":-" mostra "-" quando a
+# chave não existe, ex.: log de startup, fora de qualquer requisição ou job).
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%X{correlationId:-}] [%X{jobId:-}] [%thread] %logger{36} - %msg%n"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # Por padrão o Actuator só expõe /health. info+metrics é o mínimo
+        # útil pro Exercício 2 do Módulo 7 sem abrir informação sensível
+        # (env, beans, etc.) numa API que ainda não tem autenticação.
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized

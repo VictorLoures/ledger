@@ -27,7 +27,7 @@ para a trilha completa de módulos e exercícios.
 
 ## Progresso
 
-**Módulo atual:** 7 — Observabilidade e API profissional
+**Módulo atual:** 8 — SQL avançado
 **Status:** ainda não iniciado. Módulos 6-9 implementados de forma autônoma
 (usuário pediu pra seguir sem pausar pra perguntas — ver commits individuais
 de cada módulo pra detalhes e "porquês"; dúvidas ficam pra revisão depois).
@@ -38,7 +38,7 @@ de cada módulo pra detalhes e "porquês"; dúvidas ficam pra revisão depois).
 - [x] Módulo 4 — Agendamento e execução assíncrona
 - [x] Módulo 5 — Confiabilidade: retry, idempotência, outbox pattern
 - [x] Módulo 6 — Concorrência no banco
-- [ ] Módulo 7 — Observabilidade e API profissional
+- [x] Módulo 7 — Observabilidade e API profissional
 - [ ] Módulo 8 — SQL avançado
 - [ ] Módulo 9 — Front-end básico (visualização)
 
@@ -141,3 +141,20 @@ de cada módulo pra detalhes e "porquês"; dúvidas ficam pra revisão depois).
   substituto do lock pessimista da fila. Deadlock real provocado e
   diagnosticado contra o Postgres do compose — evidências e roteiro em
   `db/deadlock-exercise.md`.
+- **Módulo 7 (observabilidade)**: `CorrelationIdFilter` gera/propaga
+  `X-Correlation-Id` por requisição HTTP via MDC. Para o processamento
+  assíncrono, `MdcTaskDecorator` (registrado no `jobExecutor`) copia o MDC da
+  thread que chama `@Async` pra thread do pool — sem isso, MDC (baseado em
+  ThreadLocal) simplesmente não atravessa a troca de thread; `jobId` é
+  setado pelo `JobScannerService` job a job antes de disparar, então cada
+  `job-worker-N` loga com o id do job certo. Confirmado ao vivo contra o
+  compose: `X-Correlation-Id` ecoado na resposta, `jobId` aparecendo nos
+  logs do worker. Métricas via Actuator + Micrometer (`jobs.completed`,
+  `jobs.failed`, `jobs.retried`, `jobs.processing.duration`) expostas em
+  `/actuator/metrics`. Validação via Bean Validation em `CreateJobRequest`
+  (sem `@Future` em `scheduledAt` de propósito — agendar pro passado/agora
+  significa "processar assim que possível", usado nos próprios
+  testes/demos). API versionada em `/api/v1/jobs`. `GlobalExceptionHandler`
+  ganhou handler de validação (400 com lista de campos) e um
+  `@ExceptionHandler(Exception.class)` genérico — nenhum endpoint, nem os
+  não previstos, deveria vazar stacktrace ou Whitelabel Error Page.

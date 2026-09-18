@@ -36,7 +36,7 @@ class JobControllerIntegrationTest {
         var request = new CreateJobRequest(JobType.EMAIL, "{\"to\":\"teste@example.com\"}",
                 OffsetDateTime.now());
 
-        String response = mockMvc.perform(post("/jobs")
+        String response = mockMvc.perform(post("/api/v1/jobs")
                         .contentType("application/json")
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -45,14 +45,27 @@ class JobControllerIntegrationTest {
 
         String id = objectMapper.readTree(response).get("id").asText();
 
-        mockMvc.perform(get("/jobs/" + id))
+        mockMvc.perform(get("/api/v1/jobs/" + id))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(id));
     }
 
     @Test
     void returns404ForUnknownJob() throws Exception {
-        mockMvc.perform(get("/jobs/" + UUID.randomUUID()))
+        mockMvc.perform(get("/api/v1/jobs/" + UUID.randomUUID()))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void returns400WithFieldErrorsForInvalidRequest() throws Exception {
+        // payload em branco e scheduledAt ausente -> dois erros de campo
+        var invalidJson = "{\"jobType\":\"EMAIL\",\"payload\":\"\"}";
+
+        mockMvc.perform(post("/api/v1/jobs")
+                        .contentType("application/json")
+                        .content(invalidJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.errors[*].field", org.hamcrest.Matchers.hasItems("payload", "scheduledAt")));
     }
 }
