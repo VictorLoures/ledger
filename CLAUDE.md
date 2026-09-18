@@ -27,15 +27,12 @@ para a trilha completa de módulos e exercícios.
 
 ## Progresso
 
-**Módulo atual:** 2 — Docker e Containerização
-**Status:** em andamento — Postgres containerizado (docker-compose) feito;
-Dockerfile da aplicação e integração no compose ficam pendentes até existir
-código Java (Módulo 3), depois voltamos aqui pra fechar os exercícios
-restantes.
+**Módulo atual:** 4 — Agendamento e execução assíncrona
+**Status:** ainda não iniciado
 
 - [x] Módulo 1 — Modelagem de dados no PostgreSQL
-- [ ] Módulo 2 — Docker e Containerização (parcial: só Postgres)
-- [ ] Módulo 3 — Spring Boot com boas práticas
+- [x] Módulo 2 — Docker e Containerização
+- [x] Módulo 3 — Spring Boot com boas práticas (+ Flyway, fora do escopo original)
 - [ ] Módulo 4 — Agendamento e execução assíncrona
 - [ ] Módulo 5 — Confiabilidade: retry, idempotência, outbox pattern
 - [ ] Módulo 6 — Concorrência no banco
@@ -67,6 +64,24 @@ restantes.
   documenta as chaves necessárias), healthcheck com `pg_isready` pra sinalizar quando
   o banco está pronto pra conexões (importante quando a app entrar no compose).
 - **Migrations (Flyway) adicionadas ao escopo do Módulo 3**, mesmo não estando na
-  trilha original — decisão do usuário. `db/schema.sql` será convertido em
-  migrations versionadas (`V1__...sql`, etc.) quando o esqueleto Spring Boot existir,
-  substituindo a aplicação manual de DDL usada nos Módulos 1-2.
+  trilha original — decisão do usuário. `db/schema.sql` foi convertido em
+  `app/src/main/resources/db/migration/V1__init_schema.sql`, que o Flyway aplica
+  sozinho na subida da aplicação — substituindo a aplicação manual de DDL usada
+  nos Módulos 1-2.
+- **Esqueleto Spring Boot** (`app/`): Maven, Java 21, Spring Boot 4.1.1 (nota: essa
+  versão usa Jackson 3 sob o pacote `tools.jackson.*`, não mais `com.fasterxml.jackson.*`,
+  e módulos de teste splitados como `spring-boot-starter-webmvc-test` em vez do antigo
+  `spring-boot-starter-test` monolítico). Camadas controller/service/repository com
+  constructor injection; DTOs (`record`) na borda da API, nunca a entidade JPA
+  diretamente; `JobStatus`/`JobType` mapeados via `AttributeConverter` customizado
+  (não `@Enumerated` — os dois juntos no mesmo campo fazem o JPA ignorar o converter,
+  bug real que apareceu e foi corrigido); `ddl-auto: validate` (Flyway é quem aplica
+  schema, Hibernate só confere o mapeamento); `open-in-view: false`.
+- **`GlobalExceptionHandler` (`@RestControllerAdvice`)** confirmado por demonstração ao
+  vivo (Exercício 3 do Módulo 3): sem ele, `JobNotFoundException` sobe como erro 500
+  genérico e indistinguível de um bug real; com ele, vira 404 estruturado.
+- **Docker da aplicação** (`app/Dockerfile`, multi-stage: `maven:3.9-eclipse-temurin-21`
+  pra build, `eclipse-temurin:21-jre-alpine` pra rodar, usuário não-root) integrado ao
+  `docker-compose.yml` com `depends_on: condition: service_healthy` no Postgres.
+  Validado de ponta a ponta: `docker compose up` sozinho sobe banco vazio, Flyway aplica
+  a V1, app responde em `:8080` — sem nenhum `psql` manual.
