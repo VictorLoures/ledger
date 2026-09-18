@@ -92,4 +92,17 @@ public class Job {
     public OffsetDateTime getUpdatedAt() {
         return updatedAt;
     }
+
+    public void markRunning() {
+        this.status = JobStatus.RUNNING;
+        this.attempts++;
+    }
+
+    public void markDone() {
+        this.status = JobStatus.DONE;
+    }
+
+    public void markFailed() {
+        this.status = JobStatus.FAILED;
+    }
 }

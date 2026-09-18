@@ -27,13 +27,13 @@ para a trilha completa de módulos e exercícios.
 
 ## Progresso
 
-**Módulo atual:** 4 — Agendamento e execução assíncrona
+**Módulo atual:** 5 — Confiabilidade: retry, idempotência, outbox pattern
 **Status:** ainda não iniciado
 
 - [x] Módulo 1 — Modelagem de dados no PostgreSQL
 - [x] Módulo 2 — Docker e Containerização
 - [x] Módulo 3 — Spring Boot com boas práticas (+ Flyway, fora do escopo original)
-- [ ] Módulo 4 — Agendamento e execução assíncrona
+- [x] Módulo 4 — Agendamento e execução assíncrona
 - [ ] Módulo 5 — Confiabilidade: retry, idempotência, outbox pattern
 - [ ] Módulo 6 — Concorrência no banco
 - [ ] Módulo 7 — Observabilidade e API profissional
@@ -85,3 +85,20 @@ para a trilha completa de módulos e exercícios.
   `docker-compose.yml` com `depends_on: condition: service_healthy` no Postgres.
   Validado de ponta a ponta: `docker compose up` sozinho sobe banco vazio, Flyway aplica
   a V1, app responde em `:8080` — sem nenhum `psql` manual.
+- **Módulo 4 (scanner + processamento assíncrono)**: `JobScannerService` com
+  `@Scheduled(fixedDelay = 5000)` (não `fixedRate`, pra nunca sobrepor varreduras)
+  busca jobs `pending` vencidos e delega a `JobProcessingService.processAsync(UUID)`
+  — método `@Async("jobExecutor")`, pool dedicado (`AsyncConfig`, core=2/max=2/fila=2,
+  pequeno de propósito). `processAsync` recebe o **id** do job, não a entidade (nunca
+  passar entidade JPA entre threads/transações).
+- **Bug de self-invocation demonstrado ao vivo**: com scan+processamento na mesma
+  classe (`this.processAsync(...)`), a chamada não passa pelo proxy do Spring — nem
+  `@Async` nem `@Transactional` funcionam. Provado por log (thread sempre
+  `scheduling-1`, nunca `job-worker-*`) e por persistência (mudança de status nunca
+  foi salva, já que `@Transactional` também foi ignorado). Corrigido movendo o método
+  `@Async` pra um bean separado (`JobProcessingService`).
+- **Esgotamento do pool tratado como backpressure natural**: quando o pool+fila enchem,
+  `processAsync` lança `RejectedExecutionException` **antes** de `markRunning()`, então
+  o job nunca muda de status — continua `pending` e é automaticamente re-tentado na
+  próxima varredura. `JobScannerService.scan()` captura essa exceção e loga um `WARN`
+  limpo em vez de deixar vazar o stacktrace do framework.
