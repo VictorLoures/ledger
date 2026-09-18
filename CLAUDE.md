@@ -27,7 +27,7 @@ para a trilha completa de módulos e exercícios.
 
 ## Progresso
 
-**Módulo atual:** 8 — SQL avançado
+**Módulo atual:** 9 — Front-end básico (visualização)
 **Status:** ainda não iniciado. Módulos 6-9 implementados de forma autônoma
 (usuário pediu pra seguir sem pausar pra perguntas — ver commits individuais
 de cada módulo pra detalhes e "porquês"; dúvidas ficam pra revisão depois).
@@ -39,7 +39,7 @@ de cada módulo pra detalhes e "porquês"; dúvidas ficam pra revisão depois).
 - [x] Módulo 5 — Confiabilidade: retry, idempotência, outbox pattern
 - [x] Módulo 6 — Concorrência no banco
 - [x] Módulo 7 — Observabilidade e API profissional
-- [ ] Módulo 8 — SQL avançado
+- [x] Módulo 8 — SQL avançado
 - [ ] Módulo 9 — Front-end básico (visualização)
 
 ## Decisões tomadas
@@ -158,3 +158,15 @@ de cada módulo pra detalhes e "porquês"; dúvidas ficam pra revisão depois).
   ganhou handler de validação (400 com lista de campos) e um
   `@ExceptionHandler(Exception.class)` genérico — nenhum endpoint, nem os
   não previstos, deveria vazar stacktrace ou Whitelabel Error Page.
+- **Módulo 8 (SQL avançado)**: só SQL/documentação, sem mudança de código
+  Java. `db/reports.sql` — duas window functions rodadas contra dado real
+  (jobs concluídos por hora com acumulado via `SUM() OVER`; taxa de falha
+  por tipo via `COUNT(*) FILTER (...) OVER (PARTITION BY job_type)`, sem
+  `GROUP BY`/self-join). `db/explain-analyze-exercise.md` — 200 mil jobs
+  sintéticos gerados só pro exercício: busca por `payload->>'to'` sem índice
+  rodou `Parallel Seq Scan`, 14.97ms, varrendo a tabela inteira; criando um
+  **índice de expressão** (`(payload->>'to')` — índice comum não serve pra
+  campo extraído de JSONB) virou `Index Scan`, 0.055ms (~270x). Índice e
+  dados sintéticos foram removidos depois — a aplicação não tem hoje
+  nenhuma busca por destinatário no payload, manter o índice seria custo
+  sem benefício (fica documentado como referência se a feature existir).
