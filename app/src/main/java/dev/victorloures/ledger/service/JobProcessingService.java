@@ -47,8 +47,11 @@ public class JobProcessingService {
     @Async("jobExecutor")
     @Transactional
     public CompletableFuture<Void> processAsync(UUID jobId) {
+        // O job já chega aqui com status = running e attempts incrementado:
+        // JobScannerService.claimDueJobs() faz isso na mesma transação que
+        // reivindica o lock (FOR UPDATE SKIP LOCKED), pra nenhum outro
+        // worker conseguir pegar o mesmo job no meio do caminho.
         Job job = jobRepository.findById(jobId).orElseThrow();
-        job.markRunning();
 
         try {
             runSideEffectIdempotently(job);

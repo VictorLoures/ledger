@@ -49,6 +49,17 @@ class JobProcessingServiceTest {
                 "{\"to\":\"teste@example.com\"}", OffsetDateTime.now()));
     }
 
+    // Desde o Módulo 6, processAsync espera receber um job JÁ reivindicado
+    // (status running, attempts incrementado) — isso normalmente é feito por
+    // JobScannerService.claimDueJobs() via lock pessimista. Aqui simulamos
+    // esse passo diretamente, sem depender do scheduler nem esperar o
+    // scheduled_at do retry chegar de verdade.
+    private void claim(UUID jobId) {
+        Job toClaim = jobRepository.findById(jobId).orElseThrow();
+        toClaim.markRunning();
+        jobRepository.saveAndFlush(toClaim);
+    }
+
     @Test
     void retriesWithBackoffOnFailureAndSucceedsNextAttempt() throws Exception {
         doThrow(new RuntimeException("falha simulada"))
@@ -56,6 +67,7 @@ class JobProcessingServiceTest {
                 .when(sideEffectExecutor).execute(any());
 
         OffsetDateTime before = OffsetDateTime.now();
+        claim(job.getId());
         jobProcessingService.processAsync(job.getId()).join();
 
         Job afterFirstAttempt = jobRepository.findById(job.getId()).orElseThrow();
@@ -63,6 +75,7 @@ class JobProcessingServiceTest {
         assertThat(afterFirstAttempt.getAttempts()).isEqualTo(1);
         assertThat(afterFirstAttempt.getScheduledAt()).isAfter(before.plusSeconds(1));
 
+        claim(job.getId());
         jobProcessingService.processAsync(job.getId()).join();
 
         Job afterSecondAttempt = jobRepository.findById(job.getId()).orElseThrow();
@@ -76,6 +89,7 @@ class JobProcessingServiceTest {
         doThrow(new RuntimeException("sempre falha")).when(sideEffectExecutor).execute(any());
 
         for (int i = 0; i < job.getMaxAttempts(); i++) {
+            claim(job.getId());
             jobProcessingService.processAsync(job.getId()).join();
         }
 
@@ -90,6 +104,7 @@ class JobProcessingServiceTest {
     void doesNotReapplySideEffectWhenAlreadyAppliedButRecordsOutboxEvent() throws Exception {
         // Simula: o efeito já rodou numa tentativa anterior, mas o processo
         // crashou antes de marcar o job como done.
+        claim(job.getId());
         jobProcessingService.processAsync(job.getId()).join(); // aplica de verdade e marca done
 
         verify(sideEffectExecutor, times(1)).execute(any());
@@ -97,6 +112,7 @@ class JobProcessingServiceTest {
                 .anyMatch(e -> e.getAggregateId().equals(job.getId()));
 
         // Reprocessamento forçado do mesmo job (idempotência sendo testada).
+        claim(job.getId());
         jobProcessingService.processAsync(job.getId()).join();
 
         // Efeito colateral NÃO rodou de novo — só a primeira chamada existe.

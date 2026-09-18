@@ -27,15 +27,17 @@ para a trilha completa de módulos e exercícios.
 
 ## Progresso
 
-**Módulo atual:** 6 — Concorrência no banco
-**Status:** ainda não iniciado
+**Módulo atual:** 7 — Observabilidade e API profissional
+**Status:** ainda não iniciado. Módulos 6-9 implementados de forma autônoma
+(usuário pediu pra seguir sem pausar pra perguntas — ver commits individuais
+de cada módulo pra detalhes e "porquês"; dúvidas ficam pra revisão depois).
 
 - [x] Módulo 1 — Modelagem de dados no PostgreSQL
 - [x] Módulo 2 — Docker e Containerização
 - [x] Módulo 3 — Spring Boot com boas práticas (+ Flyway, fora do escopo original)
 - [x] Módulo 4 — Agendamento e execução assíncrona
 - [x] Módulo 5 — Confiabilidade: retry, idempotência, outbox pattern
-- [ ] Módulo 6 — Concorrência no banco
+- [x] Módulo 6 — Concorrência no banco
 - [ ] Módulo 7 — Observabilidade e API profissional
 - [ ] Módulo 8 — SQL avançado
 - [ ] Módulo 9 — Front-end básico (visualização)
@@ -125,3 +127,17 @@ para a trilha completa de módulos e exercícios.
   processamento concorrente do mesmo job — só é seguro no cenário sequencial
   testado aqui. Prevenir dois workers pegando o mesmo job é o próprio
   objetivo do Módulo 6 (`FOR UPDATE SKIP LOCKED`).
+- **Módulo 6 (concorrência)**: `JobRepository.lockDueJobs` usa
+  `@Lock(PESSIMISTIC_WRITE)` + hint `jakarta.persistence.lock.timeout=-2`
+  (forma documentada do Hibernate de pedir `SKIP LOCKED`, não só `FOR UPDATE`).
+  Extraído pra bean próprio (`JobClaimService`) — **de novo** o bug de
+  self-invocation do Módulo 4 apareceu de verdade aqui (`claimDueJobs()`
+  chamado via `this.x()` dentro de `JobScannerService` → `@Transactional`
+  ignorado → erro real em runtime `No active transaction`, pego rodando os
+  testes). `JobConcurrencyTest` prova com `TransactionTemplate` (não
+  threads torcendo pra coincidir no tempo) que duas transações concorrentes
+  nunca reivindicam o mesmo job. Lock otimista (`@Version` em `Job`,
+  migration V3) adicionado como defesa em camadas complementar, não
+  substituto do lock pessimista da fila. Deadlock real provocado e
+  diagnosticado contra o Postgres do compose — evidências e roteiro em
+  `db/deadlock-exercise.md`.

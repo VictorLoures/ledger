@@ -1,14 +1,12 @@
 package dev.victorloures.ledger.service;
 
-import dev.victorloures.ledger.domain.Job;
-import dev.victorloures.ledger.domain.JobStatus;
-import dev.victorloures.ledger.repository.JobRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.RejectedExecutionException;
 
 @Service
@@ -16,29 +14,30 @@ public class JobScannerService {
 
     private static final Logger log = LoggerFactory.getLogger(JobScannerService.class);
 
-    private final JobRepository jobRepository;
+    private final JobClaimService jobClaimService;
     private final JobProcessingService jobProcessingService;
 
-    public JobScannerService(JobRepository jobRepository, JobProcessingService jobProcessingService) {
-        this.jobRepository = jobRepository;
+    public JobScannerService(JobClaimService jobClaimService, JobProcessingService jobProcessingService) {
+        this.jobClaimService = jobClaimService;
         this.jobProcessingService = jobProcessingService;
     }
 
     @Scheduled(fixedDelay = 5000)
     public void scan() {
-        var dueJobs = jobRepository.findByStatusAndScheduledAtLessThanEqualOrderByScheduledAtAsc(
-                JobStatus.PENDING, OffsetDateTime.now());
+        // Chamada a outro bean (não this.x()): passa pelo proxy do Spring,
+        // o @Transactional de claimDueJobs() funciona de verdade.
+        List<UUID> claimedIds = jobClaimService.claimDueJobs();
+        log.info("Scan (thread {}): {} job(s) reivindicado(s)", Thread.currentThread().getName(), claimedIds.size());
 
-        log.info("Scan (thread {}): {} job(s) pendente(s) prontos", Thread.currentThread().getName(), dueJobs.size());
-
-        for (Job job : dueJobs) {
+        for (UUID jobId : claimedIds) {
             try {
-                jobProcessingService.processAsync(job.getId());
+                jobProcessingService.processAsync(jobId);
             } catch (RejectedExecutionException e) {
-                // Pool + fila cheios: o job nunca chegou a rodar (rejeitado
-                // antes de markRunning()), então continua "pending" e será
-                // pego de novo sozinho na próxima varredura.
-                log.warn("Pool de jobs cheio, job {} fica pending pra próxima varredura", job.getId());
+                // Pool + fila cheios. Diferente do Módulo 4: aqui o job JÁ
+                // foi reivindicado (status = running, commitado). Só
+                // logamos — o Módulo 7 (observabilidade) seria o lugar de
+                // alertar sobre isso de verdade.
+                log.warn("Pool de jobs cheio, job {} já reivindicado ficará parado até haver vaga", jobId);
             }
         }
     }

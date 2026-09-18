@@ -4,6 +4,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -45,6 +46,14 @@ public class Job {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
+
+    // Lock otimista: defesa em camadas, complementar ao lock pessimista do
+    // claim da fila (ver JobRepository.lockDueJobs). Protege qualquer OUTRO
+    // caminho de escrita que venha a existir (ex.: cancelar via API) contra
+    // sobrescrever silenciosamente uma mudança concorrente.
+    @Version
+    @Column(nullable = false)
+    private long version;
 
     protected Job() {
         // exigido pelo JPA
