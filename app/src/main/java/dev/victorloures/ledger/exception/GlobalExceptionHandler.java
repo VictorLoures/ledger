@@ -1,5 +1,6 @@
 package dev.victorloures.ledger.exception;
 
+import dev.victorloures.ledger.domain.InvalidJobStateException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -20,6 +21,15 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleJobNotFound(JobNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(new ErrorResponse(HttpStatus.NOT_FOUND.value(), ex.getMessage(), OffsetDateTime.now(), null));
+    }
+
+    // 409: a requisição em si é válida, mas conflita com o estado atual do
+    // recurso (ex.: cancelar um job que já terminou) — diferente de 400
+    // (requisição malformada) ou 404 (recurso não existe).
+    @ExceptionHandler(InvalidJobStateException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidState(InvalidJobStateException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse(HttpStatus.CONFLICT.value(), ex.getMessage(), OffsetDateTime.now(), null));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

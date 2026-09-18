@@ -2,6 +2,7 @@ package dev.victorloures.ledger.controller;
 
 import dev.victorloures.ledger.dto.CreateJobRequest;
 import dev.victorloures.ledger.dto.JobResponse;
+import dev.victorloures.ledger.dto.RescheduleRequest;
 import dev.victorloures.ledger.service.JobService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -41,5 +42,15 @@ public class JobController {
         return jobService.findAll().stream()
                 .map(JobResponse::from)
                 .toList();
+    }
+
+    @PatchMapping("/{id}/cancel")
+    public JobResponse cancel(@PathVariable UUID id) {
+        return JobResponse.from(jobService.cancel(id));
+    }
+
+    @PatchMapping("/{id}/reschedule")
+    public JobResponse reschedule(@PathVariable UUID id, @Valid @RequestBody RescheduleRequest request) {
+        return JobResponse.from(jobService.reschedule(id, request.scheduledAt()));
     }
 }

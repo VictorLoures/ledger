@@ -27,10 +27,10 @@ para a trilha completa de módulos e exercícios.
 
 ## Progresso
 
-**Módulo atual:** 9 — Front-end básico (visualização)
-**Status:** ainda não iniciado. Módulos 6-9 implementados de forma autônoma
-(usuário pediu pra seguir sem pausar pra perguntas — ver commits individuais
-de cada módulo pra detalhes e "porquês"; dúvidas ficam pra revisão depois).
+**Módulo atual:** nenhum — trilha completa (Módulos 1-9)
+**Status:** Módulos 6-9 implementados de forma autônoma (usuário pediu pra
+seguir sem pausar pra perguntas — ver commits individuais de cada módulo
+pra detalhes e "porquês"; dúvidas ficam pra revisão depois).
 
 - [x] Módulo 1 — Modelagem de dados no PostgreSQL
 - [x] Módulo 2 — Docker e Containerização
@@ -40,7 +40,7 @@ de cada módulo pra detalhes e "porquês"; dúvidas ficam pra revisão depois).
 - [x] Módulo 6 — Concorrência no banco
 - [x] Módulo 7 — Observabilidade e API profissional
 - [x] Módulo 8 — SQL avançado
-- [ ] Módulo 9 — Front-end básico (visualização)
+- [x] Módulo 9 — Front-end básico (visualização)
 
 ## Decisões tomadas
 
@@ -170,3 +170,17 @@ de cada módulo pra detalhes e "porquês"; dúvidas ficam pra revisão depois).
   dados sintéticos foram removidos depois — a aplicação não tem hoje
   nenhuma busca por destinatário no payload, manter o índice seria custo
   sem benefício (fica documentado como referência se a feature existir).
+- **Módulo 9 (front-end)**: precisou de duas ações novas na API que não
+  existiam (`PATCH /api/v1/jobs/{id}/cancel`, `.../reschedule`) — adicionado
+  status `CANCELLED` (migration V4, `Job.cancel()`/`Job.reschedule()` com
+  guardas de transição de estado: cancelar só de `pending`/`failed`;
+  reagendar não de `running`/`done`; violação vira `InvalidJobStateException`
+  → 409). `reschedule` reseta `attempts` (é uma tentativa nova deliberada,
+  diferente do retry automático que preserva o contador). `web/` — React +
+  TS + Vite, só `fetch`/`useState` (sem lib de estado/requisição — projeto
+  pequeno não justifica). Filtro de status é client-side (sem novo parâmetro
+  na API). CORS liberado só pra `localhost:5173` (`WebConfig`). **Validado
+  de ponta a ponta com Playwright real** (headless Chromium, sem sandbox):
+  criar, listar, filtrar, cancelar e reagendar, zero erros de console —
+  achou e confirmou a correção de um bug real de CORS (container não tinha
+  sido rebuilded com o `WebConfig` novo) antes de fechar o módulo.

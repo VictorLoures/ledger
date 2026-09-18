@@ -125,4 +125,27 @@ public class Job {
         this.status = JobStatus.PENDING;
         this.scheduledAt = nextAttemptAt;
     }
+
+    // Cancelar só faz sentido antes do job existir "de verdade" no mundo
+    // (pending) ou depois de uma falha definitiva — cancelar no meio do
+    // processamento (running) exigiria coordenar com o worker que está
+    // executando, o que este projeto não faz (fora de escopo).
+    public void cancel() {
+        if (status != JobStatus.PENDING && status != JobStatus.FAILED) {
+            throw new InvalidJobStateException(id, status, "cancelar");
+        }
+        this.status = JobStatus.CANCELLED;
+    }
+
+    // Reagendar é uma decisão explícita de "tentar de novo do zero" — reseta
+    // as tentativas, diferente do retry automático (scheduleRetry), que
+    // preserva o contador pra eventualmente esgotar max_attempts.
+    public void reschedule(OffsetDateTime newScheduledAt) {
+        if (status == JobStatus.RUNNING || status == JobStatus.DONE) {
+            throw new InvalidJobStateException(id, status, "reagendar");
+        }
+        this.status = JobStatus.PENDING;
+        this.scheduledAt = newScheduledAt;
+        this.attempts = 0;
+    }
 }

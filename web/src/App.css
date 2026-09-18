@@ -1,0 +1,68 @@
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  font-family: system-ui, sans-serif;
+}
+
+.create-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: end;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.create-form h2 {
+  width: 100%;
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  text-align: left;
+  padding: 0.5rem;
+  border-bottom: 1px solid #eee;
+}
+
+.actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.badge {
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.badge-pending { background: #9aa0a6; }
+.badge-running { background: #1a73e8; }
+.badge-done { background: #188038; }
+.badge-failed { background: #d93025; }
+.badge-cancelled { background: #5f6368; }
+
+.error {
+  background: #fce8e6;
+  color: #a50e0e;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+}
